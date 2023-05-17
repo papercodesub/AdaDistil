@@ -24,10 +24,15 @@ ImageNet
 ```
 
 ## Model Preparation
-Since AdaDistil includes feature map distillation, you need to modify the forward code in the torchvision model library, for example:
+Since AdaDistill includes feature maps distillation, if you want to use AdaDistill on other torchvision models, you need to modify the forward code in the torchvision model library. Otherwise, you will meet the following bug：
+```bash
+output, _ = model(image)
+ValueError: too many values to unpack (expected 2)
+```
+We provide two examples of modifications:
 ```python
 # You can find your torchvision model code in this Path
-# python3.7/lib/python3.7/site-packages/torchvision/models/resnet.py
+# {Your_env_name}/lib/python3.7/site-packages/torchvision/models/resnet.py
 def _forward_impl(self, x: Tensor) -> Tensor:
     x = self.conv1(x)
     x = self.bn1(x)
@@ -38,12 +43,23 @@ def _forward_impl(self, x: Tensor) -> Tensor:
     x = self.layer2(x)
     x = self.layer3(x)
     x = self.layer4(x)
-    f = x  # add 
+    f = x  # modified 
     x = self.avgpool(x)
     x = torch.flatten(x, 1)
     x = self.fc(x)
 
     return x,f # modified
+
+# {Your_env_name}/lib/python3.7/site-packages/torchvision/models/mobilenetv2.py
+def _forward_impl(self, x: Tensor) -> Tensor:
+    x = self.features(x)
+    f = x # modified
+    x = nn.functional.adaptive_avg_pool2d(x, (1, 1))
+    x = torch.flatten(x, 1)
+    x = self.classifier(x)
+    return x, f # modified
+
+
 ```
 
 ## Re-produce our results
@@ -91,7 +107,7 @@ torchrun --nproc_per_node=8  main.py --data-path ImageNet_PATH --output-dir /out
 ```
 
 
-Besides, we provide our trained models and experiment logs at [Google Drive](https://drive.google.com/drive/folders/1mb2qbRYR5BtAkSjG8IBq2Q0Axc3g8GIH?usp=share_link). To test, run:
+Besides, we provide our trained models and experiment logs at [Google Drive](https://drive.google.com/drive/folders/10sJ9hCn6ezJeYk91qPeEOT6fQ44ntceT?usp=share_link). To test, run:
 
 - ResNet on CIFAR-10
 
